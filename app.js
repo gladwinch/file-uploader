@@ -1,28 +1,26 @@
 const express = require('express')
-const fileupload = require('express-fileupload')
+const path = require('path')
+const fs = require('fs')
+const os = require('os')
+const Busboy = require('busboy')
 const app = express()
 
 app.use(express.json())
-app.use(fileupload())
 
 app.post('/excel-upload', (req,res) => {
-    if (req.files == undefined) {
-        return res.status(400).send("Please upload an excel file!");
-    }
+    const busboy = new Busboy({ headers: req.headers })
 
-    const file = req.files.file
+    busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
+        const saveTo = path.join('./public', filename)
 
-    file.mv(`./public/${file.name}`, async err => {
-        if(err) {
-            console.log(err)
-            return res.status(500).json({ success: false })
-        }
-
-        res.status(200).json({
-            success: true,
-            data: file.name
-        })
+        file.pipe(fs.createWriteStream(saveTo))
     })
+
+    busboy.on('finish', function() {
+        res.status(200).json({ success: true })
+    })
+
+    return req.pipe(busboy)  
 })
 
 app.listen(5000, () => {
